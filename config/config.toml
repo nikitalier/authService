@@ -1,0 +1,30 @@
+AppName = "authService"
+
+[[MongoDB]]
+    Host = "mongodb://localhost:27017,localhost:27018,localhost:27019/authService?replicaset=mongodb-replicaset"
+
+[ServerOpt]
+  Port = ":3005"
+#   AllowedMethods = [
+#     "GET",
+# 		"POST",
+# 		"PUT",
+# 		"DELETE",
+# 		"OPTIONS",
+# 		"HEAD",]
+#   AllowedHeaders = [
+#     "Access-Control-Allow-Origin",
+#     "x-access-token",
+# 		"Origin",
+# 		"Authorisation",
+# 		"Content-Type",
+# 		"Secret",
+#   ]
+#   ExposedHeaders = [
+#     "Access-Control-Allow-Origin",
+#     "x-access-token",
+# 		"Origin",
+# 		"Authorisation",
+# 		"Content-Type",
+# 		"Secret",
+#   ]
