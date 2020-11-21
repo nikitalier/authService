@@ -3,20 +3,14 @@ package repository
 import (
 	"context"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/nikitalier/authService/pkg/models"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func (r *Repository) AddTokenPairs(tokens map[string]string, guid string, uuid string) error {
+func (r *Repository) AddRefreshToken(hashedRT []byte, uuid, guid string) error {
 	ctx := context.Background()
-
-	hashedRT, err := bcrypt.GenerateFromPassword([]byte(tokens["refresh_token"]), bcrypt.DefaultCost)
-	if err != nil {
-		r.logger.Error().Msg(err.Error())
-		return err
-	}
 
 	session, err := r.startTransaction(ctx)
 	if err != nil {
@@ -24,15 +18,8 @@ func (r *Repository) AddTokenPairs(tokens map[string]string, guid string, uuid s
 	}
 
 	err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
-		collT := r.db.Database("authService").Collection("AccessToken")
-		_, err := collT.InsertOne(sc, bson.D{{"Token", tokens["access_token"]}, {"GUID", guid}, {"UUID", uuid}})
-		if err != nil {
-			r.logger.Error().Msg(err.Error())
-			return err
-		}
-
-		collRT := r.db.Database("authService").Collection("RefreshToken")
-		_, err = collRT.InsertOne(sc, bson.D{{"TokenHash", hashedRT}, {"GUID", guid}, {"UUID", uuid}})
+		coll := r.db.Database("authService").Collection("RefreshToken")
+		_, err = coll.InsertOne(sc, bson.D{{"TokenHash", hashedRT}, {"guid", guid}, {"uuid", uuid}})
 		if err != nil {
 			r.logger.Error().Msg(err.Error())
 			return err
@@ -53,7 +40,7 @@ func (r *Repository) AddTokenPairs(tokens map[string]string, guid string, uuid s
 	return nil
 }
 
-func (r *Repository) DeleteRefreshToken(uuid string) error {
+func (r *Repository) DeleteRefreshTokenByUUID(uuid string) error {
 	var ctx = context.Background()
 
 	session, err := r.startTransaction(ctx)
@@ -63,7 +50,7 @@ func (r *Repository) DeleteRefreshToken(uuid string) error {
 
 	err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
 		coll := r.db.Database("authService").Collection("RefreshToken")
-		_, err := coll.DeleteOne(sc, bson.D{{"UUID", uuid}})
+		_, err := coll.DeleteOne(sc, bson.D{{"uuid", uuid}})
 		if err != nil {
 			r.logger.Error().Msg(err.Error())
 			return err
@@ -82,10 +69,41 @@ func (r *Repository) DeleteRefreshToken(uuid string) error {
 
 	session.EndSession(ctx)
 	return nil
-
 }
 
-func (r *Repository) DeleteAccessToken(uuid string) error {
+func (r *Repository) FindRefreshTokenByUUID(uuid string) (rt models.RefreshToken, err error) {
+	var ctx = context.Background()
+
+	session, err := r.startTransaction(ctx)
+	if err != nil {
+		return rt, err
+	}
+
+	filter := bson.D{{"uuid", uuid}}
+
+	err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
+		coll := r.db.Database("authService").Collection("RefreshToken")
+		err = coll.FindOne(sc, filter).Decode(&rt)
+		if err != nil {
+			r.logger.Error().Msg(err.Error())
+			return err
+		}
+		err = session.CommitTransaction(sc)
+		if err != nil {
+			r.logger.Error().Msg(err.Error())
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return rt, err
+	}
+
+	session.EndSession(ctx)
+	return rt, err
+}
+
+func (r *Repository) DeleteAllRefreshTokensByGUID(guid string) error {
 	var ctx = context.Background()
 
 	session, err := r.startTransaction(ctx)
@@ -93,9 +111,11 @@ func (r *Repository) DeleteAccessToken(uuid string) error {
 		return err
 	}
 
+	filter := bson.D{{"guid", guid}}
+
 	err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
-		coll := r.db.Database("authService").Collection("AccessToken")
-		_, err := coll.DeleteOne(sc, bson.D{{"UUID", uuid}})
+		coll := r.db.Database("authService").Collection("RefreshToken")
+		_, err := coll.DeleteMany(sc, filter)
 		if err != nil {
 			r.logger.Error().Msg(err.Error())
 			return err
@@ -113,7 +133,7 @@ func (r *Repository) DeleteAccessToken(uuid string) error {
 	}
 
 	session.EndSession(ctx)
-	return nil
+	return err
 }
 
 func (r *Repository) startTransaction(ctx context.Context) (mongo.Session, error) {

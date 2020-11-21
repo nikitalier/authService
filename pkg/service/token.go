@@ -6,17 +6,18 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/twinj/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var secretToken = []byte("secret")
 
-func (s *Service) GenerateTokenPair(GUID string) (map[string]string, error) {
+func (s *Service) GenerateTokenPair(guid string) (map[string]string, error) {
 	uuid := uuid.NewV4().String()
 
 	token := jwt.New(jwt.SigningMethodHS512)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["type"] = "access"
-	claims["GUID"] = GUID
+	claims["guid"] = guid
 	claims["uuid"] = uuid
 	claims["exp"] = time.Now().Add(time.Minute * 60).Unix()
 
@@ -28,22 +29,29 @@ func (s *Service) GenerateTokenPair(GUID string) (map[string]string, error) {
 
 	refreshToken := jwt.New(jwt.SigningMethodHS512)
 	rtClaims := refreshToken.Claims.(jwt.MapClaims)
-	rtClaims["exp"] = time.Now().Add(time.Hour * 48).Unix()
 	rtClaims["type"] = "refresh"
+	rtClaims["guid"] = guid
 	rtClaims["uuid"] = uuid
-	rtClaims["GUID"] = GUID
+	rtClaims["exp"] = time.Now().Add(time.Hour * 48).Unix()
 
 	rt, err := refreshToken.SignedString(secretToken)
 	if err != nil {
 		s.logger.Error().Msg(err.Error())
 		return nil, err
 	}
+
 	tokens := map[string]string{
 		"access_token":  t,
 		"refresh_token": rt,
 	}
 
-	s.repository.AddTokenPairs(tokens, GUID, uuid)
+	hashedRT, err := bcrypt.GenerateFromPassword([]byte(rt), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.Error().Msg(err.Error())
+		return nil, err
+	}
+
+	s.repository.AddRefreshToken(hashedRT, uuid, guid)
 
 	return tokens, nil
 }
@@ -56,27 +64,38 @@ func (s *Service) RefreshToken(tokenString string) (map[string]string, error) {
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	if token.Valid && fmt.Sprintf("%v", claims["type"]) == "refresh" {
-		err = s.repository.DeleteRefreshToken(fmt.Sprintf("%v", claims["uuid"]))
-		if err != nil {
-			return nil, err
-		}
-		err = s.repository.DeleteAccessToken(fmt.Sprintf("%v", claims["uuid"]))
-		if err != nil {
-			return nil, err
-		}
-		tokens, err := s.GenerateTokenPair(fmt.Sprintf("%v", claims["uuid"]))
-		if err != nil {
-			s.logger.Error().Msg(err.Error())
-			return nil, err
-		}
-		return tokens, err
+	uuid := fmt.Sprintf("%v", claims["uuid"])
+	guid := fmt.Sprintf("%v", claims["guid"])
+	tokenType := fmt.Sprintf("%v", claims["type"])
+
+	if !token.Valid && tokenType != "refresh" {
+		s.logger.Error().Msg("Invalid token")
+		return nil, fmt.Errorf("Invalid token")
 	}
-	s.logger.Error().Msg("Invalid token")
-	return nil, fmt.Errorf("Invalid token")
+
+	rt, err := s.repository.FindRefreshTokenByUUID(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid token")
+	}
+	err = bcrypt.CompareHashAndPassword(rt.TokenHash, []byte(tokenString))
+	if err != nil {
+		s.logger.Error().Msg("Invalid token")
+		return nil, fmt.Errorf("Invalid token")
+	}
+
+	err = s.repository.DeleteRefreshTokenByUUID(uuid)
+	if err != nil {
+		return nil, err
+	}
+	tokens, err := s.GenerateTokenPair(guid)
+	if err != nil {
+		s.logger.Error().Msg(err.Error())
+		return nil, err
+	}
+	return tokens, err
 }
 
-func (s *Service) DeleteToken(tokenString string) error {
+func (s *Service) DeleteRefreshToken(tokenString string) error {
 	token, err := s.parseToken(tokenString)
 	if err != nil {
 		s.logger.Error().Msg(err.Error())
@@ -84,15 +103,25 @@ func (s *Service) DeleteToken(tokenString string) error {
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	if token.Valid && fmt.Sprintf("%v", claims["type"]) == "refresh" {
-		err = s.repository.DeleteRefreshToken(fmt.Sprintf("%v", claims["uuid"]))
-		if err != nil {
-			return err
-		}
-		return nil
+	if !token.Valid && fmt.Sprintf("%v", claims["type"]) != "refresh" {
+		s.logger.Error().Msg("Invalid token")
+		return fmt.Errorf("Invalid token")
 	}
-	s.logger.Error().Msg("Invalid token")
-	return fmt.Errorf("Invalid token")
+
+	err = s.repository.DeleteRefreshTokenByUUID(fmt.Sprintf("%v", claims["uuid"]))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) DeleteAllRefreshTokens(guid string) error {
+	err := s.repository.DeleteAllRefreshTokensByGUID(guid)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) parseToken(tokenString string) (token *jwt.Token, err error) {

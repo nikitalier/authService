@@ -47,6 +47,8 @@ func (app *Application) setupRoutes() *mux.Router {
 
 	r.HandleFunc("/gettokens", app.getPairTokens).Methods("GET")
 	r.HandleFunc("/refreshtoken", app.refreshToken).Methods("POST")
+	r.HandleFunc("/deletetoken", app.deleteRefreshToken).Methods("POST")
+	r.HandleFunc("/deletealltokens", app.deleteAllTokens).Methods("GET")
 
 	return r
 }
