@@ -27,7 +27,7 @@ type ServerOpt struct {
 	Port string `toml:"Port"`
 	// AllowedHeaders []string `toms:"AllowedHeaders"`
 	// ExposedHeaders []string `toms:"ExposedHeaders"`
-	// AllowedMethods []string `toms:"AllowedMethods"`
+	AllowedMethods []string `toms:"AllowedMethods"`
 }
 
 type duration time.Duration

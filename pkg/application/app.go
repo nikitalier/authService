@@ -7,6 +7,7 @@ import (
 	"github.com/nikitalier/authService/config"
 	"github.com/nikitalier/authService/pkg/service"
 
+	"github.com/gorilla/handlers"
 	"github.com/rs/zerolog"
 )
 
@@ -23,6 +24,8 @@ type Options struct {
 }
 
 func New(opt *Options) *Application {
+	var allowedMethods = handlers.AllowedMethods(opt.Serv.AllowedMethods)
+
 	app := &Application{
 		svc: opt.Svc,
 		serv: &http.Server{
@@ -31,7 +34,9 @@ func New(opt *Options) *Application {
 		logger: opt.Logger,
 	}
 
-	app.serv.Handler = app.setupRoutes()
+	app.serv.Handler = handlers.CORS(
+		allowedMethods,
+	)(app.setupRoutes())
 
 	app.logger.Info().Msg("App started on port" + opt.Serv.Port)
 

@@ -1,5 +1,0 @@
-package service
-
-func (s *Service) Test() {
-	s.RefreshToken("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJHVUlEIjoiYmEyOGNlYjQtMDEzZi00M2MzLWI2ZTgtNjZmYzM2MjU2YTJkIiwiZXhwIjoxNjA1OTg4MjQ3LCJ0eXBlIjoicmVmcmVzaCIsInV1aWQiOiIxZmFiY2RiYy1iYzgwLTQ1NjYtYTNmYi1lNjZiMmNlZTVmNmMifQ.daiVd8SlZjl_VraYsrPUIOQt9Ir1PeDfTzbs1Ephvub8PxbYayrji5QwzHBo6VF-QVTZsf2rsjxMslsVfeuN0Q")
-}

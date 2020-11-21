@@ -5,26 +5,22 @@ AppName = "authService"
 
 [ServerOpt]
   Port = ":3005"
-#   AllowedMethods = [
-#     "GET",
-# 		"POST",
-# 		"PUT",
-# 		"DELETE",
-# 		"OPTIONS",
-# 		"HEAD",]
-#   AllowedHeaders = [
-#     "Access-Control-Allow-Origin",
-#     "x-access-token",
-# 		"Origin",
-# 		"Authorisation",
-# 		"Content-Type",
-# 		"Secret",
-#   ]
-#   ExposedHeaders = [
-#     "Access-Control-Allow-Origin",
-#     "x-access-token",
-# 		"Origin",
-# 		"Authorisation",
-# 		"Content-Type",
-# 		"Secret",
-#   ]
+  AllowedMethods = [
+    "GET",
+		"POST",]
+  # AllowedHeaders = [
+  #   "Access-Control-Allow-Origin",
+  #   "x-access-token",
+	# 	"Origin",
+	# 	"Authorisation",
+	# 	"Content-Type",
+	# 	"Secret",
+  # ]
+  # ExposedHeaders = [
+  #   "Access-Control-Allow-Origin",
+  #   "x-access-token",
+	# 	"Origin",
+	# 	"Authorisation",
+	# 	"Content-Type",
+	# 	"Secret",
+  # ]
